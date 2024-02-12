@@ -24,5 +24,14 @@ def prof(flag):
     return render_template('proflist.html', flag=flag, proflist=proflist)
 
 
+@app.route('/answer')
+@app.route('/auto_answer')
+def answers():
+    data = {'title': 'Анкета', 'surname': 'Васильев', 'name': 'Дима', 'education': 'высшее', 'profession': 'Космонавт',
+            'sex': 'мужской', 'motivation': 'всегда мечтал покушать картошки с Марса', 'ready': 'готов'}
+
+    return render_template('auto_answer.html', **data)
+
+
 if __name__ == '__main__':
     app.run(port=8080, host='127.0.0.1')

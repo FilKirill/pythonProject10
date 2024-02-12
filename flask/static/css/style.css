@@ -8,10 +8,12 @@ form.login_form {
     padding: 10px;
 }
 
-h1{
-   text-align: center;
+h4 {
+color:purple;
+padding:20px;
 }
 
-h2{
-   text-align: center;
+p{
+color:blue;
+font_size:14pt;
 }

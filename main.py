@@ -2,7 +2,7 @@ from flask import Flask, url_for, render_template, redirect
 from data.users import User
 from flask import Flask
 from data.login_form import LoginForm
-from flask_login import LoginManager, login_manager, login_user
+from flask_login import LoginManager, login_manager, login_user, logout_user, login_required
 from data import db_session
 from data.jobs import Jobs
 
@@ -21,12 +21,14 @@ def load_user(user_id):
 
 
 @app.route('/')
-@app.route('/index')
 def index():
+    return render_template('index.html')
+
+
+@app.route('/jobs')
+def jobs():
     db_sess = db_session.create_session()
-
     jobs = db_sess.query(Jobs).all()
-
     return render_template('jobs.html', jobs=jobs)
 
 
@@ -38,11 +40,18 @@ def login():
         user = db_sess.query(User).filter(User.email == form.email.data).first()
         if user and user.check_password(form.password.data):
             login_user(user, remember=form.remember_me.data)
-            return redirect("/")
+            return redirect("/jobs")
         return render_template('login.html',
                                message="Неправильный логин или пароль",
                                form=form)
     return render_template('login.html', title='Авторизация', form=form)
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect("/")
 
 
 if __name__ == '__main__':

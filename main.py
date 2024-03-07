@@ -80,6 +80,18 @@ def add_job():
 @app.route('/register', methods=['GET', 'POST'])
 def registration():
     form = RegForm()
+    db_sess = db_session.create_session()
+    users = db_sess.query(User).all()
+    print([user.email for user in users])
+    if form.validate_on_submit() and form.email.data in [user.email for user in users]:
+        return render_template('registration.html', title='Зарегистрироваться',
+                               form=form, message='Существующая почта')
+    if form.validate_on_submit() and form.password.data != form.password_2.data:
+        return render_template('registration.html', title='Зарегистрироваться',
+                               form=form, message='разные пароли')
+    if form.validate_on_submit() and not (28 < form.age.data < 283):
+        return render_template('registration.html', title='Зарегистрироваться',
+                               form=form, message='не подходите по возрасту')
     if form.validate_on_submit() and form.password.data == form.password_2.data:
         db_sess = db_session.create_session()
         user = User()
@@ -99,14 +111,14 @@ def registration():
                            form=form)
 
 
-@app.route('/work/<int:id>', methods=['GET', 'POST'])
+@app.route('/works_edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_work(id):
     form = WorksForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
-        work = db_sess.query(Jobs).filter(User.id == id,
-                                          User.user == current_user
+        work = db_sess.query(Jobs).filter(Jobs.id == id,
+                                          (Jobs.team_leader == current_user.id) | (current_user.id == 1)
                                           ).first()
         if work:
             form.team_leader.data = work.team_leader
@@ -118,8 +130,8 @@ def edit_work(id):
             abort(404)
     if form.validate_on_submit():
         db_sess = db_session.create_session()
-        work = db_sess.query(Jobs).filter(User.id == id,
-                                          User.user == current_user
+        work = db_sess.query(Jobs).filter(Jobs.id == id,
+                                          (Jobs.team_leader == current_user.id) | (current_user.id == 1)
                                           ).first()
         if work:
             work.team_leader = form.team_leader.data
@@ -137,5 +149,20 @@ def edit_work(id):
                            )
 
 
+@app.route('/works_delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def news_delete(id):
+    db_sess = db_session.create_session()
+    work = db_sess.query(Jobs).filter(Jobs.id == id,
+                                      (Jobs.team_leader == current_user.id) | (current_user.id == 1)
+                                      ).first()
+    if work:
+        db_sess.delete(work)
+        db_sess.commit()
+    else:
+        abort(404)
+    return redirect('/')
+
+
 if __name__ == '__main__':
-    app.run(port=8080, host='127.0.0.1')
+    app.run(port=5000, host='127.0.0.1')

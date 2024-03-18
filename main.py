@@ -5,16 +5,23 @@ from data.login_form import LoginForm
 from flask_login import LoginManager, login_manager, login_user, logout_user, login_required, current_user
 from data import db_session
 from data.jobs import Jobs
-from data.work_form import WorksForm
 from data.registration import RegForm
+from data import jobs_api
+from flask_restful import reqparse, abort, Api, Resource
+from data import users_resource
 
 app = Flask(__name__)
+api = Api(app)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 login_manager = LoginManager()
 login_manager.init_app(app)
 
 db_session.global_init('db/mars_explorer.db')
 
+api.add_resource(users_resource.UsersListResource, '/api/v2/user')
+
+# для одного объекта
+api.add_resource(users_resource.UsersResource, '/api/v2/user/<int:user_id>')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -64,7 +71,8 @@ def add_job():
     form = WorksForm()
     if form.validate_on_submit() and form.team_leader.data != current_user.id:
         return render_template('works.html', title='Добавление работы',
-                               form=form, message='Работу можно добавить только от своего имени')
+                               form=form, message='Вы можете добавлять работы только от своего имени.')
+
     if form.validate_on_submit():
         db_sess = db_session.create_session()
         job = Jobs()
@@ -85,16 +93,17 @@ def registration():
     form = RegForm()
     db_sess = db_session.create_session()
     users = db_sess.query(User).all()
-    print([user.email for user in users])
     if form.validate_on_submit() and form.email.data in [user.email for user in users]:
         return render_template('registration.html', title='Зарегистрироваться',
                                form=form, message='Существующая почта')
     if form.validate_on_submit() and form.password.data != form.password_2.data:
         return render_template('registration.html', title='Зарегистрироваться',
-                               form=form, message='разные пароли')
-    if form.validate_on_submit() and not (28 < form.age.data < 283):
+                               form=form, message='Пароли не равны')
+
+    if form.validate_on_submit() and not (28 < form.age.data < 100):
         return render_template('registration.html', title='Зарегистрироваться',
-                               form=form, message='не подходите по возрасту')
+                               form=form, message='Извините, вы не подходите к нам по возрасту.')
+
     if form.validate_on_submit() and form.password.data == form.password_2.data:
         db_sess = db_session.create_session()
         user = User()
@@ -110,11 +119,12 @@ def registration():
         db_sess.add(user)
         db_sess.commit()
         return redirect('/login')
+
     return render_template('registration.html', title='Зарегистрироваться',
                            form=form)
 
 
-@app.route('/works_edit/<int:id>', methods=['GET', 'POST'])
+@app.route('/job/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_work(id):
     form = WorksForm()
@@ -143,7 +153,7 @@ def edit_work(id):
             work.collaborators = form.collaborators.data
             work.is_finished = form.is_finished.data
             db_sess.commit()
-            return redirect('/')
+            return redirect('/jobs')
         else:
             abort(404)
     return render_template('work_edit.html',
@@ -152,20 +162,21 @@ def edit_work(id):
                            )
 
 
-@app.route('/works_delete/<int:id>', methods=['GET', 'POST'])
+@app.route('/job_delete/<int:id>', methods=['GET', 'POST'])
 @login_required
-def news_delete(id):
+def jobs_delete(id):
     db_sess = db_session.create_session()
-    work = db_sess.query(Jobs).filter(Jobs.id == id,
-                                      (Jobs.team_leader == current_user.id) | (current_user.id == 1)
-                                      ).first()
-    if work:
-        db_sess.delete(work)
+    job = db_sess.query(Jobs).filter(Jobs.id == id,
+                                     (Jobs.team_leader == current_user.id) | (current_user.id == 1)
+                                     ).first()
+    if job:
+        db_sess.delete(job)
         db_sess.commit()
     else:
         abort(404)
-    return redirect('/')
+    return redirect('/jobs')
 
 
 if __name__ == '__main__':
-    app.run(port=5000, host='127.0.0.1')
+    app.register_blueprint(jobs_api.blueprint)
+    app.run(port=5050, host='127.0.0.1')
